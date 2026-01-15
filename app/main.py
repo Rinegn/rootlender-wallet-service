@@ -3,6 +3,7 @@ from app.core.settings import settings
 from app.clients.config_client import fetch_wallet_config
 from app.clients.service_registry_client import discover_services
 from app.clients.iam_client import validate_token_soft
+from app.clients.ledger_client import fetch_balance_soft
 
 app = FastAPI(
     title=settings.app_name,
@@ -38,3 +39,8 @@ def debug_discovery():
 def debug_iam(authorization: str | None = Header(default=None)):
     token = authorization.replace("Bearer ", "") if authorization else "debug-token"
     return {"iam": validate_token_soft(token)}
+
+
+@app.get("/_debug/ledger")
+def debug_ledger():
+    return {"ledger": fetch_balance_soft()}
