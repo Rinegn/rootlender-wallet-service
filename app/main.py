@@ -1,6 +1,7 @@
 ﻿from fastapi import FastAPI
 from app.core.settings import settings
 from app.clients.config_client import fetch_wallet_config
+from app.clients.service_registry_client import discover_services
 
 app = FastAPI(
     title=settings.app_name,
@@ -24,6 +25,9 @@ def health():
 
 @app.get("/_debug/config")
 def debug_config():
-    return {
-        "config": fetch_wallet_config()
-    }
+    return {"config": fetch_wallet_config()}
+
+
+@app.get("/_debug/discovery")
+def debug_discovery():
+    return {"services": discover_services()}

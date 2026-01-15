@@ -7,8 +7,9 @@ class Settings(BaseSettings):
     environment: str = "local"
     port: int = 8010
 
-    # Config dependency (read-only)
+    # Dependencies (soft)
     config_service_url: str | None = None
+    service_registry_url: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

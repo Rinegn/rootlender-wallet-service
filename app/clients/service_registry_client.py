@@ -2,21 +2,16 @@
 from app.core.settings import settings
 
 
-def register_self(base_url: str) -> None:
+def discover_services() -> dict | None:
     if not settings.service_registry_url:
-        return
-
-    payload = {
-        "service_name": settings.service_name,
-        "base_url": base_url,
-        "environment": settings.environment,
-    }
+        return None
 
     try:
-        with httpx.Client(timeout=5.0) as client:
-            client.post(
-                f"{settings.service_registry_url}/register",
-                json=payload,
-            )
+        with httpx.Client(timeout=3.0) as client:
+            resp = client.get(f"{settings.service_registry_url}/services")
+            if resp.status_code == 200:
+                return resp.json()
     except Exception:
         pass
+
+    return None
