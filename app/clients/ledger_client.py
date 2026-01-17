@@ -1,27 +1,39 @@
 ﻿import httpx
-from app.clients.service_registry_client import discover_services
+from app.core.settings import settings
+from app.clients.service_registry_discovery import discover_service_base_url
 
 
-def fetch_balance_soft(user_id: str = "debug-user") -> dict | None:
-    services = discover_services()
-    if not services:
-        return None
+LEDGER_SERVICE_NAME = "rootlender-ledger-service"
 
-    ledger = services.get("rootlender-ledger-service")
-    if not ledger:
+
+def _ledger_base_url() -> str | None:
+    # 1) Direct override wins
+    if settings.ledger_service_url:
+        return settings.ledger_service_url.rstrip("/")
+
+    # 2) Soft discovery via registry
+    discovered = discover_service_base_url(LEDGER_SERVICE_NAME)
+    if discovered:
+        return discovered.rstrip("/")
+
+    return None
+
+
+def fetch_balance(user_id: str) -> dict | None:
+    """
+    Read-only call to Ledger balance endpoint.
+    Returns dict on success, None on any failure.
+    """
+    base = _ledger_base_url()
+    if not base:
         return None
 
     try:
         with httpx.Client(timeout=3.0) as client:
-            resp = client.get(f"{ledger['base_url']}/health")
-            if resp.status_code == 200:
-                return {
-                    "ledger_reachable": True,
-                    "ledger_response": resp.json(),
-                    "user_id": user_id,
-                    "balance": "0.00 (mock)",
-                }
+            r = client.get(f"{base}/balances/{user_id}")
+            if r.status_code == 200:
+                return r.json()
     except Exception:
-        pass
+        return None
 
     return None

@@ -1,9 +1,7 @@
-﻿from fastapi import FastAPI, Header
+﻿from fastapi import FastAPI
 from app.core.settings import settings
-from app.clients.config_client import fetch_wallet_config
-from app.clients.service_registry_client import discover_services
-from app.clients.iam_client import validate_token_soft
-from app.clients.ledger_client import fetch_balance_soft
+from app.clients.ledger_client import fetch_balance
+
 
 app = FastAPI(
     title=settings.app_name,
@@ -22,25 +20,31 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "service": settings.service_name,
+        "environment": settings.environment,
+        "status": "ok",
+    }
 
 
-@app.get("/_debug/config")
-def debug_config():
-    return {"config": fetch_wallet_config()}
+@app.get("/wallets/{user_id}/balance")
+def wallet_balance(user_id: str):
+    """
+    Wallet owns orchestration, Ledger owns truth.
+    Wallet does ZERO balance math.
+    """
+    bal = fetch_balance(user_id)
+    if not bal:
+        # Safe failure: service stays up, caller sees dependency unavailable
+        return {
+            "user_id": user_id,
+            "currency": "USD",
+            "balance": None,
+            "source": "ledger",
+            "status": "unavailable",
+        }
 
-
-@app.get("/_debug/discovery")
-def debug_discovery():
-    return {"services": discover_services()}
-
-
-@app.get("/_debug/iam")
-def debug_iam(authorization: str | None = Header(default=None)):
-    token = authorization.replace("Bearer ", "") if authorization else "debug-token"
-    return {"iam": validate_token_soft(token)}
-
-
-@app.get("/_debug/ledger")
-def debug_ledger():
-    return {"ledger": fetch_balance_soft()}
+    # Pass-through (Ledger-owned)
+    bal["source"] = "ledger"
+    bal["status"] = "ok"
+    return bal
