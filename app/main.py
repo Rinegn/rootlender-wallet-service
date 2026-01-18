@@ -1,50 +1,16 @@
 ﻿from fastapi import FastAPI
-from app.core.settings import settings
-from app.clients.ledger_client import fetch_balance
 
+from app.middleware.correlation import correlation_middleware
+from app.routers.health import router as health_router
+from app.routers.holds import router as holds_router
+from app.routers.transactions import router as transactions_router
 
-app = FastAPI(
-    title=settings.app_name,
-    version="1.0.0",
-)
+app = FastAPI()
 
+# Middleware
+app.middleware("http")(correlation_middleware)
 
-@app.get("/")
-def root():
-    return {
-        "service": settings.service_name,
-        "environment": settings.environment,
-        "status": "running",
-    }
-
-
-@app.get("/health")
-def health():
-    return {
-        "service": settings.service_name,
-        "environment": settings.environment,
-        "status": "ok",
-    }
-
-
-@app.get("/wallets/{user_id}/balance")
-def wallet_balance(user_id: str):
-    """
-    Wallet owns orchestration, Ledger owns truth.
-    Wallet does ZERO balance math.
-    """
-    bal = fetch_balance(user_id)
-    if not bal:
-        # Safe failure: service stays up, caller sees dependency unavailable
-        return {
-            "user_id": user_id,
-            "currency": "USD",
-            "balance": None,
-            "source": "ledger",
-            "status": "unavailable",
-        }
-
-    # Pass-through (Ledger-owned)
-    bal["source"] = "ledger"
-    bal["status"] = "ok"
-    return bal
+# Routers
+app.include_router(health_router)
+app.include_router(holds_router)
+app.include_router(transactions_router)
